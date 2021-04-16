@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+import scipy.optimize
 
 
 # Testing data
@@ -14,7 +15,7 @@ def DrawSlotPts(transX, transY, length, radius, rotationDeg):
     coorX = [coor-length/2 if coor<0 else coor+length/2 for coor in coorX]
 
     coorXY = []
-    rotationRad = 2 * np.pi / 360 *rotationDeg
+    rotationRad = 2 * np.pi / 360 * rotationDeg
     for itr in range(len(coorX)):
         xItr = coorX[itr]
         yItr = coorY[itr]
@@ -57,29 +58,21 @@ def myPlot(*arguments, coorXY):
 
 # Hypothesis model
 def FindTranslations(coorXY):
-    num = len(coorXY)
-    totalX, totalY = 0, 0
-    for coor in coorXY:
-        totalX += coor[0]
-        totalY += coor[1]
+    maxX = max([coor[0] for coor in coorXY])
+    minX = min([coor[0] for coor in coorXY])
+    
+    maxY = max([coor[1] for coor in coorXY])
+    minY = min([coor[1] for coor in coorXY])
 
-    return (totalX/num, totalY/num)
+    return ((maxX+minX)/2, (maxY+minY)/2)
 
 
-def FindLengthRadius(coorXY, trans):
+def FindLengthRadius(coorXY, trans, angleRad, rotationRad):
     distance = [((coor[0]-trans[0])**2 + (coor[1]-trans[1])**2)**0.5 for coor in coorXY]
-    
-    maxDist = 0
-    for dist in distance:
-        if dist > maxDist:
-            maxDist = dist
-    
-    minDist = maxDist
-    for dist in distance:
-        if dist < minDist:
-            minDist = dist
+    maxDist = max(distance)
+    yProject = [dist * abs(np.sin(angleRad[itr]-rotationRad))  for itr, dist in enumerate(distance)]
 
-    radius = minDist
+    radius = max(yProject)
     length = 2 * (maxDist - radius)
 
     return length, radius
@@ -129,8 +122,8 @@ def FindPtsAngle(coorXY, trans, rotationDeg):
     
     return angleRad
 
-
-def GetCost(coorXY, trans, length, radius, rotationRad, angleRad):
+        
+def GetCost(length, coorXY, angleRad, trans, radius, rotationRad):
     angle1 = np.arctan(radius/(length/2)) + rotationRad
     angle2 = np.pi - np.arctan(radius/(length/2)) + rotationRad
     angle3 = np.pi + np.arctan(radius/(length/2)) + rotationRad
@@ -169,9 +162,15 @@ if __name__ == '__main__':
 
     # Guess slot's properties
     trans = FindTranslations(coorXY)
-    length, radius = FindLengthRadius(coorXY, trans)
     rotationRad = FindSlotRotation(coorXY, trans)
     angleRad = FindPtsAngle(coorXY, trans, rotationRad)
+    length, radius = FindLengthRadius(coorXY, trans, angleRad, rotationRad)
+    print(trans, length, radius, rotationRad)
 
-    cost = GetCost(coorXY, trans, length, radius, rotationRad, angleRad)
-    
+    cost = GetCost(length, coorXY, angleRad, trans, radius, rotationRad)
+    print(cost)
+
+    # Optimization
+    # x0 = np.array([length, ])
+    # result = scipy.optimize.minimize(fun=GetCost, x0=x0, args=(coorXY, angleRad, trans, radius, rotationRad))
+    # print(result.x)
