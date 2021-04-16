@@ -204,7 +204,7 @@ if __name__ == '__main__':
     transY     = 800
     length      = 80
     radius      = 100
-    rotationDeg = 30 
+    rotationDeg = 45
 
     coorXY = DrawSlotPts(transX=transX, transY=transY, length=length, radius=radius, rotationDeg=rotationDeg)
 
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     
     # A coarse initial guesses of slot's properties
     # trans = (990, 810)
-    # rotationRad = 0.5236
+    # rotationRad = rotationDeg * 2 * np.pi / 360
     # angleRad = FindPtsAngle(coorXY, trans, rotationRad)
     # length, radius = 84, 105
 
@@ -231,9 +231,9 @@ if __name__ == '__main__':
 
 
     # Optimize guesses: trans, rotationRad, length, radius
-    alpha = 4
+    alpha = 0.01
     itr = 1
-    maxItr = 30
+    maxItr = 100
 
     examCost = [(0, cost)]
     while itr <= maxItr:
@@ -243,8 +243,8 @@ if __name__ == '__main__':
         transYGrad = GetGradient(GetCost, 'transY', coorXY, angleRad, trans, rotationRad, length, radius)
         trans = (trans[0], trans[1] - alpha * transYGrad)
         
-        # rotationRadGrad = GetGradient(GetCost, 'rotationRad', coorXY, angleRad, trans, rotationRad, length, radius)
-        # rotationRad += -alpha * rotationRadGrad
+        rotationRadGrad = GetGradient(GetCost, 'rotationRad', coorXY, angleRad, trans, rotationRad, length, radius)
+        rotationRad += -alpha * rotationRadGrad/360
 
         lengthGrad = GetGradient(GetCost, 'length', coorXY, angleRad, trans, rotationRad, length, radius)
         length += -alpha * lengthGrad
@@ -266,7 +266,7 @@ if __name__ == '__main__':
 
         costRate = abs((newCost - cost)/cost)
 
-        if costRate < 0.01:
+        if costRate < 0.0001:
             break
         else:
             cost = newCost
