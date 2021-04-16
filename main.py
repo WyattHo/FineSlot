@@ -198,16 +198,11 @@ def GetGradient(func, tgt, *arguments):
     return gradient
 
 
+
+#####################################################################################
 # Main
-if __name__ == '__main__':
-    transX     = 1000
-    transY     = 800
-    length      = 80
-    radius      = 100
-    rotationDeg = 45
-
-    coorXY = DrawSlotPts(transX=transX, transY=transY, length=length, radius=radius, rotationDeg=rotationDeg)
-
+#####################################################################################
+def main(coorXY, printData=False):
     # A precise initial guesses of slot's properties
     trans = FindTranslations(coorXY)
     rotationRad = FindSlotRotation(coorXY, trans)
@@ -221,13 +216,15 @@ if __name__ == '__main__':
     # length, radius = 84, 105
 
     cost = GetCost(coorXY, angleRad, trans, rotationRad, length, radius)
-    print('Cost of initial: {:.6f}'.format(cost))
-    print('  - transX: {:.6f}'.format(trans[0]))
-    print('  - transY: {:.6f}'.format(trans[1]))
-    print('  - rotate: {:.6f}'.format(rotationRad))
-    print('  - length: {:.6f}'.format(length))
-    print('  - radius: {:.6f}'.format(radius))
-    print('\n')
+    
+    if printData:
+        print('Cost of initial: {:.6f}'.format(cost))
+        print('  - transX: {:.6f}'.format(trans[0]))
+        print('  - transY: {:.6f}'.format(trans[1]))
+        print('  - rotate: {:.6f}'.format(rotationRad))
+        print('  - length: {:.6f}'.format(length))
+        print('  - radius: {:.6f}'.format(radius))
+        print('\n')
 
 
     # Optimize guesses: trans, rotationRad, length, radius
@@ -253,13 +250,14 @@ if __name__ == '__main__':
         radius += -alpha * radiusGrad
 
         newCost = GetCost(coorXY, angleRad, trans, rotationRad, length, radius)
-        print('Cost of itr {:2d}: {:.6f}'.format(itr, newCost))
-        print('  - transX: {:.6f}'.format(trans[0]))
-        print('  - transY: {:.6f}'.format(trans[1]))
-        print('  - rotate: {:.6f}'.format(rotationRad))
-        print('  - length: {:.6f}'.format(length))
-        print('  - radius: {:.6f}'.format(radius))
-        print('\n')
+        
+        if printData:
+            print('Cost of itr {:2d}: {:.6f}'.format(itr, newCost))
+            print('  - transX: {:.6f}'.format(trans[0]))
+            print('  - transY: {:.6f}'.format(trans[1]))
+            print('  - rotate: {:.6f}'.format(rotationRad))
+            print('  - length: {:.6f}'.format(length))
+            print('  - radius: {:.6f}'.format(radius))
         
         examCost.append((itr, newCost))
         itr += 1
@@ -270,5 +268,20 @@ if __name__ == '__main__':
             break
         else:
             cost = newCost
+    
+    if printData:
+        myPlot(coorXY=examCost)
 
-    myPlot(coorXY=examCost)
+    return trans, rotationRad, length, radius
+
+
+# Test
+if __name__ == '__main__':
+    transX     = 1000
+    transY     = 800
+    length      = 80
+    radius      = 100
+    rotationDeg = 45
+
+    coorXY = DrawSlotPts(transX=transX, transY=transY, length=length, radius=radius, rotationDeg=rotationDeg)
+    transOpt, rotationRadOpt, lengthOpt, radiusOpt = main(coorXY, printData=True)
