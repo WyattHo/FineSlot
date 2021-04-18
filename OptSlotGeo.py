@@ -6,17 +6,17 @@ import random
 #####################################################################################
 # Create testing data
 #####################################################################################
-def DrawSlotPts(transX, transY, length, radius, rotationDeg):
-    angleDeg = np.linspace(0, 360, 31)
-    angleRad = 2* np.pi / 360 * angleDeg
+def CreateSlotPts(transX, transY, length, radius, rotationDeg):
+    directionDeg = np.linspace(0, 360, 31)
+    directionRad = 2* np.pi / 360 * directionDeg
 
-    coorX = [radius*(1 + random.random()/10000) * np.cos(rad) for rad in angleRad]
-    coorY = [radius*(1 + random.random()/10000) * np.sin(rad) for rad in angleRad]
+    coorX = [radius*(1 + random.random()/10000) * np.cos(rad) for rad in directionRad]
+    coorY = [radius*(1 + random.random()/10000) * np.sin(rad) for rad in directionRad]
 
     coorX = [coor-length/2 if coor<0 else coor+length/2 for coor in coorX]
 
     coorXY = []
-    rotationRad = 2 * np.pi / 360 * rotationDeg
+    rotationRad = 2*np.pi / 360 * rotationDeg
     for itr in range(len(coorX)):
         xItr = coorX[itr]
         yItr = coorY[itr]
@@ -31,7 +31,7 @@ def DrawSlotPts(transX, transY, length, radius, rotationDeg):
         elif xItr < 0 and yItr < 0:
             thetaItr = np.pi + artTan
         else:
-            thetaItr = 2 * np.pi - artTan
+            thetaItr = 2*np.pi - artTan
 
         coorX[itr] = radiusItr * np.cos(rotationRad+thetaItr) + transX
         coorY[itr] = radiusItr * np.sin(rotationRad+thetaItr) + transY
@@ -41,21 +41,63 @@ def DrawSlotPts(transX, transY, length, radius, rotationDeg):
     return tuple(coorXY)
 
 
-def myPlot(*arguments, coorXY):
-    coorX = [coor[0] for coor in coorXY]
-    coorY = [coor[1] for coor in coorXY]
+#####################################################################################
+# Plot function
+#####################################################################################
+def geoPlot(*points, fig, ax, dataSet):
+    if fig == None and ax == None:
+        fig = plt.figure(figsize=(5,5), tight_layout=True)
+        ax = fig.add_subplot(1,1,1)
+        ax.set_xlabel('coorX')
+        ax.set_ylabel('coorY')
+    
+    if dataSet:
+        dataX = [data[0] for data in dataSet]
+        dataY = [data[1] for data in dataSet]
+        ax.plot(dataX, dataY, '-o', markersize=4, markeredgewidth=1, markerfacecolor='w', markeredgecolor='royalblue')
 
-    fig = plt.figure(figsize=(5,5))
+    if points:
+        for point in points:
+            ax.plot(point[0], point[1], '+', markersize=10, markeredgewidth=2, markerfacecolor='orange', markeredgecolor='orange')
+            ax.grid()
+    
+    return fig, ax
+
+
+def costPlot(dataSet):
+    dataX = [data[0] for data in dataSet]
+    dataY = [data[1] for data in dataSet]
+
+    fig = plt.figure(figsize=(5,3), tight_layout=True)
     ax = fig.add_subplot(1,1,1)
-    ax.plot(coorX, coorY, '+', markersize=10, markeredgewidth=2, markerfacecolor='royalblue', markeredgecolor='royalblue')
-
-    for coor in arguments:
-        ax.plot(coor[0], coor[1], '+', markersize=10, markeredgewidth=2, markerfacecolor='orange', markeredgecolor='orange')
-
+    ax.plot(dataX, dataY, '-', color='royalblue', linewidth=3)
+    ax.set_xlabel('iterations')
+    ax.set_ylabel('cost')
     ax.grid()
     plt.show()
 
-    return fig, ax
+
+def printGuessResult(itr, cost, trans, slotRotation, length, radius):
+    print('Guess no. : {:4d}'.format(itr))
+    print('  - cost  : {:.6f}'.format(cost))
+    print('  - transX: {:.6f}'.format(trans[0]))
+    print('  - transY: {:.6f}'.format(trans[1]))
+    print('  - rotate: {:.6f}'.format(slotRotation*360/(2*np.pi)))
+    print('  - length: {:.6f}'.format(length))
+    print('  - radius: {:.6f}'.format(radius))
+
+
+def GetGuessedCornerCoor(trans, slotRotation, length, radius):
+    diagLength = ((length/2)**2 + radius**2)**0.5
+    diagTheta1 = np.arctan(radius/(length/2))
+    diagTheta2 = np.pi - np.arctan(radius/(length/2))
+
+    ptLT = (trans[0] + diagLength*np.cos(diagTheta2+slotRotation) , trans[1] + diagLength*np.sin(diagTheta2+slotRotation))
+    ptRT = (trans[0] + diagLength*np.cos(diagTheta1+slotRotation) , trans[1] + diagLength*np.sin(diagTheta1+slotRotation))
+    ptLB = (trans[0] - diagLength*np.cos(diagTheta1+slotRotation) , trans[1] - diagLength*np.sin(diagTheta1+slotRotation))
+    ptRB = (trans[0] - diagLength*np.cos(diagTheta2+slotRotation) , trans[1] - diagLength*np.sin(diagTheta2+slotRotation))
+
+    return ptLT, ptRT, ptLB, ptRB
 
 
 #####################################################################################
@@ -63,140 +105,141 @@ def myPlot(*arguments, coorXY):
 #####################################################################################
 def FindTranslations(coorXY):
     maxX = max([coor[0] for coor in coorXY])
-    minX = min([coor[0] for coor in coorXY])
-    
     maxY = max([coor[1] for coor in coorXY])
+    minX = min([coor[0] for coor in coorXY])
     minY = min([coor[1] for coor in coorXY])
 
     return ((maxX+minX)/2, (maxY+minY)/2)
 
 
-def FindLengthRadius(coorXY, trans, angleRad, rotationRad):
-    distance = [((coor[0]-trans[0])**2 + (coor[1]-trans[1])**2)**0.5 for coor in coorXY]
+def FindSlotRotation(coorXY, trans):
+    distance = [GetDistance(coor, trans) for coor in coorXY]
+    
+    maxDist = 0
+    for itr, dist in enumerate(distance):
+        if dist > maxDist and (coorXY[itr][0]-trans[0]) > 0:
+            maxId = itr
+            maxDist = dist
+    
+    deltaX = coorXY[maxId][0] - trans[0]
+    deltaY = coorXY[maxId][1] - trans[1]
+
+    if deltaY > 0:
+        slotRotation = np.arctan(abs(deltaY)/abs(deltaX))
+    else:
+        slotRotation = 2*np.pi - np.arctan(abs(deltaY)/abs(deltaX))
+
+    return slotRotation
+
+
+def FindPtsDirection(coorXY, trans):
+    # ptsDirection should be "absolute" not "relative" 
+    ptsDirection = []
+    for coor in coorXY:
+        deltaX = coor[0] - trans[0]
+        deltaY = coor[1] - trans[1]
+
+        if deltaX >=0 and deltaY >= 0:
+            direction = np.arctan(abs(deltaY)/abs(deltaX))
+        elif deltaX < 0 and deltaY >=0:
+            direction = np.pi - np.arctan(abs(deltaY)/abs(deltaX))
+        elif deltaX < 0 and deltaY < 0:
+            direction = np.pi + np.arctan(abs(deltaY)/abs(deltaX))
+        else:
+            direction = 2*np.pi - np.arctan(abs(deltaY)/abs(deltaX))
+
+        if direction > 2*np.pi:
+            direction -= 2*np.pi
+
+        ptsDirection.append(direction)
+    
+    return ptsDirection
+
+
+def FindSlotLengthRadius(coorXY, trans, ptsDirection, slotRotation):
+    distance = [GetDistance(coor, trans) for coor in coorXY]
     maxDist = max(distance)
-    yProject = [dist * abs(np.sin(angleRad[itr]-rotationRad))  for itr, dist in enumerate(distance)]
+    yProject = [dist * abs(np.sin(ptsDirection[itr]-slotRotation))  for itr, dist in enumerate(distance)]
 
     radius = max(yProject)
     length = 2 * (maxDist - radius)
 
     return length, radius
 
-
-def FindSlotRotation(coorXY, trans):
-    distance = [((coor[0]-trans[0])**2 + (coor[1]-trans[1])**2)**0.5 for coor in coorXY]
-    
-    maxDist = 0
-    for itr, dist in enumerate(distance):
-        if dist > maxDist and (coorXY[itr][0]-trans[0]) > 0:
-            maxDist = dist
-    
-    maxId = distance.index(maxDist)
-    
-    deltaX = coorXY[maxId][0]-trans[0]
-    deltaY = coorXY[maxId][1]-trans[1]
-
-    if deltaY > 0:
-        rotationRad = np.arctan(abs(deltaY)/abs(deltaX))
-    else:
-        rotationRad = 2 * np.pi - np.arctan(abs(deltaY)/abs(deltaX))
-
-    return rotationRad
-
-
-def FindPtsAngle(coorXY, trans, rotationDeg):
-    rotationRad = 2 * np.pi / 360 *rotationDeg
-    angleRad = []
-    for coor in coorXY:
-        deltaX = coor[0] - trans[0]
-        deltaY = coor[1] - trans[1]
-
-        if deltaX >=0 and deltaY >= 0:
-            theta = np.arctan(abs(deltaY)/abs(deltaX)) + rotationRad
-        elif deltaX < 0 and deltaY >=0:
-            theta = np.pi - np.arctan(abs(deltaY)/abs(deltaX)) + rotationRad
-        elif deltaX < 0 and deltaY < 0:
-            theta = np.pi + np.arctan(abs(deltaY)/abs(deltaX)) + rotationRad
-        else:
-            theta = 2 * np.pi - np.arctan(abs(deltaY)/abs(deltaX)) + rotationRad
-
-        if theta > 2 * np.pi:
-            theta -= 2 * np.pi
-
-        angleRad.append(theta)
-    
-    return angleRad
-
         
-def GetCost(coorXY, angleRad, trans, rotationRad, length, radius):
-    angle1 = np.arctan(radius/(length/2)) + rotationRad
-    angle2 = np.pi - np.arctan(radius/(length/2)) + rotationRad
-    angle3 = np.pi + np.arctan(radius/(length/2)) + rotationRad
-    # angle4 = 2 * np.pi - np.arctan(radius/(length/2)) + rotationRad
+def GetCost(coorXY, ptsDirection, trans, slotRotation, length, radius):
+    direction1 = np.arctan(radius/(length/2)) + slotRotation
+    direction2 = np.pi - np.arctan(radius/(length/2)) + slotRotation
+    direction3 = np.pi + np.arctan(radius/(length/2)) + slotRotation
+    direction4 = 2*np.pi - np.arctan(radius/(length/2)) + slotRotation
 
-    cirOriginLeft  = (trans[0] - length/2*np.cos(rotationRad), trans[1] - length/2*np.sin(rotationRad))
-    cirOriginRight = (trans[0] + length/2*np.cos(rotationRad), trans[1] + length/2*np.sin(rotationRad))
-    # myPlot(cirOriginLeft, trans, cirOriginRight, coorXY=coorXY)
+    cirOriginLeft  = (trans[0] - length/2*np.cos(slotRotation), trans[1] - length/2*np.sin(slotRotation))
+    cirOriginRight = (trans[0] + length/2*np.cos(slotRotation), trans[1] + length/2*np.sin(slotRotation))
 
     error = 0
-    for itr, angle in enumerate(angleRad):
-        if angle <= angle1:
-            error += abs(((coorXY[itr][0] - cirOriginRight[0])**2 + (coorXY[itr][1] - cirOriginRight[1])**2)**0.5 - radius)
-        elif angle < angle2:
-            error += abs(((coorXY[itr][0] - trans[0])**2 + (coorXY[itr][1] -trans[1])**2)**0.5 * np.sin(angle-rotationRad) - radius)
-        elif angle < angle3:
-            error += abs(((coorXY[itr][0] - cirOriginLeft[0])**2 + (coorXY[itr][1] - cirOriginLeft[1])**2)**0.5 - radius)
+    for itr, direction in enumerate(ptsDirection):
+        if direction <= direction1:
+            error += abs(GetDistance(coorXY[itr], cirOriginRight) - radius)
+        elif direction < direction2:
+            error += abs(GetDistance(coorXY[itr], trans)*np.sin(direction-slotRotation) - radius)
+        elif direction < direction3:
+            error += abs(GetDistance(coorXY[itr], cirOriginLeft) - radius)
+        elif direction < direction4:
+            error += abs(-GetDistance(coorXY[itr], trans)*np.sin(direction-slotRotation) - radius)
         else:
-            error += abs(-((coorXY[itr][0] - trans[0])**2 + (coorXY[itr][1] -trans[1])**2)**0.5 * np.sin(angle-rotationRad) - radius)
+            error += abs(GetDistance(coorXY[itr], cirOriginRight) - radius)
 
-    num = len(angleRad)
+    num = len(ptsDirection)
     cost = error/num
-
     return cost
 
 
+def GetDistance(pt1, pt2):
+    deltaX = pt2[0] - pt1[0]
+    deltaY = pt2[1] - pt1[1]
+    return (deltaX**2 + deltaY**2)**0.5
+
+
 def GetGradient(func, tgt, *arguments):
-    coorXY, angleRad, trans, rotationRad, length, radius = arguments
+    coorXY, ptsDirection, trans, slotRotation, length, radius = arguments
     
     if tgt == 'transX':
-        argumentLeft = trans[0] * 0.99999
-        argumentRight = trans[0] * 1.00001
+        argumentLeft = trans[0] * 0.999
+        argumentRight = trans[0] * 1.001
 
-        costLeft = func(coorXY, angleRad, (argumentLeft, trans[1]), rotationRad, length, radius)
-        costRight = func(coorXY, angleRad, (argumentRight, trans[1]), rotationRad, length, radius)
+        costLeft = func(coorXY, ptsDirection, (argumentLeft, trans[1]), slotRotation, length, radius)
+        costRight = func(coorXY, ptsDirection, (argumentRight, trans[1]), slotRotation, length, radius)
     
     elif tgt == 'transY':
-        argumentLeft = trans[1] * 0.99999
-        argumentRight = trans[1] * 1.00001
+        argumentLeft = trans[1] * 0.999
+        argumentRight = trans[1] * 1.001
 
-        costLeft = func(coorXY, angleRad, (trans[0], argumentLeft), rotationRad, length, radius)
-        costRight = func(coorXY, angleRad, (trans[0], argumentRight), rotationRad, length, radius)
+        costLeft = func(coorXY, ptsDirection, (trans[0], argumentLeft), slotRotation, length, radius)
+        costRight = func(coorXY, ptsDirection, (trans[0], argumentRight), slotRotation, length, radius)
 
-    elif tgt == 'rotationRad':
-        argumentLeft = rotationRad * 0.999999
-        argumentRight = rotationRad * 1.000001
+    elif tgt == 'slotRotation':
+        argumentLeft = slotRotation * 0.999
+        argumentRight = slotRotation * 1.001
 
-        costLeft = func(coorXY, angleRad, trans, argumentLeft, length, radius)
-        costRight = func(coorXY, angleRad, trans, argumentRight, length, radius)
+        costLeft = func(coorXY, ptsDirection, trans, argumentLeft, length, radius)
+        costRight = func(coorXY, ptsDirection, trans, argumentRight, length, radius)
 
     elif tgt == 'length':
         argumentLeft = length * 0.999
         argumentRight = length * 1.001
 
-        costLeft = func(coorXY, angleRad, trans, rotationRad, argumentLeft, radius)
-        costRight = func(coorXY, angleRad, trans, rotationRad, argumentRight, radius)
+        costLeft = func(coorXY, ptsDirection, trans, slotRotation, argumentLeft, radius)
+        costRight = func(coorXY, ptsDirection, trans, slotRotation, argumentRight, radius)
     
     elif tgt == 'radius':
         argumentLeft = radius * 0.999
         argumentRight = radius * 1.001
 
-        costLeft = func(coorXY, angleRad, trans, rotationRad, length, argumentLeft)
-        costRight = func(coorXY, angleRad, trans, rotationRad, length, argumentRight)
+        costLeft = func(coorXY, ptsDirection, trans, slotRotation, length, argumentLeft)
+        costRight = func(coorXY, ptsDirection, trans, slotRotation, length, argumentRight)
     
-
     gradient = (costRight-costLeft) / (argumentRight-argumentLeft)
-
     return gradient
-
 
 
 #####################################################################################
@@ -205,83 +248,70 @@ def GetGradient(func, tgt, *arguments):
 def main(coorXY, printData=False):
     # A precise initial guesses of slot's properties
     trans = FindTranslations(coorXY)
-    rotationRad = FindSlotRotation(coorXY, trans)
-    angleRad = FindPtsAngle(coorXY, trans, rotationRad)
-    length, radius = FindLengthRadius(coorXY, trans, angleRad, rotationRad)
+    slotRotation = FindSlotRotation(coorXY, trans)
+    ptsDirection = FindPtsDirection(coorXY, trans)
+    length, radius = FindSlotLengthRadius(coorXY, trans, ptsDirection, slotRotation)
+    alpha, maxItr, costRateUpperBound = 0.0001, 1000, 0.0001
     
     # A coarse initial guesses of slot's properties
-    # trans = (990, 810)
-    # rotationRad = rotationDeg * 2 * np.pi / 360
-    # angleRad = FindPtsAngle(coorXY, trans, rotationRad)
-    # length, radius = 84, 105
+    # trans = (990, 820)
+    # slotRotation = rotationDeg * 2*np.pi / 360
+    # ptsDirection = FindPtsDirection(coorXY, trans)
+    # length, radius = 50, 120
+    # alpha, maxItr, costRateUpperBound = 0.1, 1000, 0.000001
 
-    cost = GetCost(coorXY, angleRad, trans, rotationRad, length, radius)
-    
+    cost = GetCost(coorXY, ptsDirection, trans, slotRotation, length, radius)
     if printData:
-        print('Cost of initial: {:.6f}'.format(cost))
-        print('  - transX: {:.6f}'.format(trans[0]))
-        print('  - transY: {:.6f}'.format(trans[1]))
-        print('  - rotate: {:.6f}'.format(rotationRad))
-        print('  - length: {:.6f}'.format(length))
-        print('  - radius: {:.6f}'.format(radius))
-        print('\n')
+        printGuessResult(0, cost, trans, slotRotation, length, radius)
+        fig, ax = geoPlot(fig=None, ax=None, dataSet=coorXY)
 
-
-    # Optimize guesses: trans, rotationRad, length, radius
-    alpha = 0.01
+    # Optimize guesses: trans, slotRotation, length, radius
     itr = 1
-    maxItr = 100
-
-    examCost = [(0, cost)]
+    costRecord = [(0, cost)]
     while itr <= maxItr:
-        transXGrad = GetGradient(GetCost, 'transX', coorXY, angleRad, trans, rotationRad, length, radius)
-        trans = (trans[0] - alpha * transXGrad, trans[1])
+        grad = GetGradient(GetCost, 'transX', coorXY, ptsDirection, trans, slotRotation, length, radius)
+        trans = (trans[0]-alpha*grad, trans[1]           )
         
-        transYGrad = GetGradient(GetCost, 'transY', coorXY, angleRad, trans, rotationRad, length, radius)
-        trans = (trans[0], trans[1] - alpha * transYGrad)
+        grad = GetGradient(GetCost, 'transY', coorXY, ptsDirection, trans, slotRotation, length, radius)
+        trans = (trans[0]           , trans[1]-alpha*grad)
         
-        rotationRadGrad = GetGradient(GetCost, 'rotationRad', coorXY, angleRad, trans, rotationRad, length, radius)
-        rotationRad += -alpha * rotationRadGrad/360
+        grad = GetGradient(GetCost, 'slotRotation', coorXY, ptsDirection, trans, slotRotation, length, radius)
+        slotRotation += -alpha*grad
 
-        lengthGrad = GetGradient(GetCost, 'length', coorXY, angleRad, trans, rotationRad, length, radius)
-        length += -alpha * lengthGrad
+        grad = GetGradient(GetCost, 'length', coorXY, ptsDirection, trans, slotRotation, length, radius)
+        length += -alpha*grad
         
-        radiusGrad = GetGradient(GetCost, 'radius', coorXY, angleRad, trans, rotationRad, length, radius)
-        radius += -alpha * radiusGrad
+        grad = GetGradient(GetCost, 'radius', coorXY, ptsDirection, trans, slotRotation, length, radius)
+        radius += -alpha*grad
 
-        newCost = GetCost(coorXY, angleRad, trans, rotationRad, length, radius)
-        
         if printData:
-            print('Cost of itr {:2d}: {:.6f}'.format(itr, newCost))
-            print('  - transX: {:.6f}'.format(trans[0]))
-            print('  - transY: {:.6f}'.format(trans[1]))
-            print('  - rotate: {:.6f}'.format(rotationRad))
-            print('  - length: {:.6f}'.format(length))
-            print('  - radius: {:.6f}'.format(radius))
-        
-        examCost.append((itr, newCost))
+            printGuessResult(itr, cost, trans, slotRotation, length, radius)
+            ptLT, ptRT, ptLB, ptRB = GetGuessedCornerCoor(trans, slotRotation, length, radius)
+            fig, ax = geoPlot(ptLT, ptRT, ptLB, ptRB, fig=fig, ax=ax, dataSet=None)
+
+        newCost = GetCost(coorXY, ptsDirection, trans, slotRotation, length, radius)
+        costRecord.append((itr, newCost))
         itr += 1
 
-        costRate = abs((newCost - cost)/cost)
-
-        if costRate < 0.0001:
+        costRate = abs((newCost-cost) / cost)
+        if costRate < costRateUpperBound:
             break
         else:
             cost = newCost
     
     if printData:
-        myPlot(coorXY=examCost)
-
-    return trans, rotationRad, length, radius
+        costPlot(costRecord)
+        
+    return trans, slotRotation, length, radius
 
 
 # Test
 if __name__ == '__main__':
     transX     = 1000
     transY     = 800
-    length      = 80
+    length      = 60
     radius      = 100
     rotationDeg = 45
 
-    coorXY = DrawSlotPts(transX=transX, transY=transY, length=length, radius=radius, rotationDeg=rotationDeg)
+    coorXY = CreateSlotPts(transX=transX, transY=transY, length=length, radius=radius, rotationDeg=rotationDeg)
     transOpt, rotationRadOpt, lengthOpt, radiusOpt = main(coorXY, printData=True)
